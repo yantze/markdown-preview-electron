@@ -1,0 +1,16 @@
+{
+  "name": "markdown-preview-electron",
+  "version": "1.0.0",
+  "description": "A minimal Electron application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "Electron"
+  ],
+  "author": "yantze",
+  "devDependencies": {
+    "electron": "^4.1.1"
+  }
+}
