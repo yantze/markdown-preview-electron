@@ -2,10 +2,21 @@
 <html>
     <head>
         <meta charset="UTF-8" />
-        <title>Hello World!</title>
-        <script src="https://unpkg.com/vue"></script>
-        <script src="https://unpkg.com/marked@0.3.6"></script>
-        <script src="https://unpkg.com/lodash@4.16.0"></script>
+        <title>Markdown Editor</title>
+
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="./node_modules/highlight.js/styles/github.css"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="./node_modules/github-markdown-css/github-markdown.css"
+        />
+
+        <script src="./node_modules/vue/dist/vue.min.js"></script>
+        <script src="./node_modules/hotkeys-js/dist/hotkeys.min.js"></script>
         <style>
             html,
             body,
@@ -41,9 +52,16 @@
                 padding: 20px;
             }
 
+            #editor div {
+                padding-top: 20px;
+                padding-bottom: 20px;
+            }
+
+            /*
             code {
                 color: #f66;
             }
+            */
 
             pre {
                 overflow-x: auto;
@@ -52,11 +70,83 @@
     </head>
     <body>
         <div id="editor">
-            <textarea :value="input" @input="update"></textarea>
-            <div v-html="compiledMarkdown"></div>
+            <textarea
+                ref="input"
+                :value="input"
+                @input="update"
+                @keydown="update"
+            ></textarea>
+            <div class="markdown-body" v-html="compiledMarkdown"></div>
         </div>
 
         <script>
+            const hljs = require('highlight.js')
+            const marked = require('marked')
+            const _ = require('lodash')
+
+            // Synchronous highlighting with highlight.js
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang) {
+                        return hljs.highlight(lang, code).value
+                    } else {
+                        return hljs.highlightAuto(code).value
+                    }
+                },
+            })
+
+            hotkeys.filter = function(event) {
+                var tagName = (event.target || event.srcElement).tagName
+                return (
+                    tagName.isContentEditable ||
+                    tagName == 'INPUT' ||
+                    tagName == 'SELECT' ||
+                    tagName == 'TEXTAREA'
+                )
+            }
+
+            const keyHandlers = [
+                {
+                    key: 'command+b',
+                    label: 'Bold',
+                    handler: (e, context) => {
+                        return `**${context.content}**`
+                    },
+                },
+                {
+                    key: 'cmd+i',
+                    label: 'Italic',
+                    handler: (e, context) => {
+                        return `*${context.content}*`
+                    },
+                },
+                {
+                    key: 'cmd+u',
+                    label: 'Delete line',
+                    handler: (e, context) => {
+                        return `~~${context.content}~~`
+                    },
+                },
+                {
+                    key: 'cmd+l',
+                    label: 'Make link',
+                    handler: (e, context) => {
+                        let content = context.content
+                        const reg = /https?\:\/\/[^"\s]+/i
+                        const result = reg.exec(content)
+                        if (result) {
+                            // 提取 url 出来，并且把剩余的部分当作 label
+                            let splitText = content.split('')
+                            splitText.splice(result.index, result[0].length)
+                            const text = splitText.join('').trim()
+                            return `[${text}](${result[0]})`
+                        } else {
+                            return `[${context.content}](${context.content})`
+                        }
+                    },
+                },
+            ]
+
             new Vue({
                 el: '#editor',
                 data: {
@@ -76,6 +166,27 @@
                     input(newValue) {
                         localStorage.setItem('input', newValue)
                     },
+                },
+                mounted() {
+                    $input = this.$refs.input
+                    const keysStr = keyHandlers.map(e => e.key).join(',')
+
+                    // 这里会出现捕获不了的情况，是在选择了头或者尾的情况下出现
+                    hotkeys(keysStr, { element: $input }, (e, handler) => {
+                        const start = $input.selectionStart
+                        const end = $input.selectionEnd
+                        const text = document.getSelection().toString()
+
+                        $input.setRangeText(
+                            keyHandlers
+                                .find(e => e.key === handler.key)
+                                .handler(e, { content: text }),
+                            $input.selectionStart,
+                            $input.selectionEnd,
+                        )
+
+                        return false
+                    })
                 },
             })
         </script>
