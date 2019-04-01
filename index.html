@@ -109,28 +109,28 @@
                 {
                     key: 'command+b',
                     label: 'Bold',
-                    handler: (e, context) => {
+                    handle: (e, context) => {
                         return `**${context.content}**`
                     },
                 },
                 {
-                    key: 'cmd+i',
+                    key: 'command+i',
                     label: 'Italic',
-                    handler: (e, context) => {
+                    handle: (e, context) => {
                         return `*${context.content}*`
                     },
                 },
                 {
-                    key: 'cmd+u',
+                    key: 'command+u',
                     label: 'Delete line',
-                    handler: (e, context) => {
+                    handle: (e, context) => {
                         return `~~${context.content}~~`
                     },
                 },
                 {
-                    key: 'cmd+l',
+                    key: 'ctrl+l',
                     label: 'Make link',
-                    handler: (e, context) => {
+                    handle: (e, context) => {
                         let content = context.content
                         const reg = /https?\:\/\/[^"\s]+/i
                         const result = reg.exec(content)
@@ -171,19 +171,29 @@
                     $input = this.$refs.input
                     const keysStr = keyHandlers.map(e => e.key).join(',')
 
+
+                    // hotkeys('*', { element: $input }, (e, handler) => {
+                    //     console.log('bbb-->', handler.key, e.keyCode, e.shiftKey, e.metaKey)
+                    // })
+
                     // 这里会出现捕获不了的情况，是在选择了头或者尾的情况下出现
                     hotkeys(keysStr, { element: $input }, (e, handler) => {
-                        const start = $input.selectionStart
-                        const end = $input.selectionEnd
                         const text = document.getSelection().toString()
 
-                        $input.setRangeText(
+                        document.execCommand('insertText', false,
                             keyHandlers
-                                .find(e => e.key === handler.key)
-                                .handler(e, { content: text }),
-                            $input.selectionStart,
-                            $input.selectionEnd,
-                        )
+                            .find(e => e.key === handler.key)
+                            .handle(e, { content: text }))
+
+                        // const start = $input.selectionStart
+                        // const end = $input.selectionEnd
+                        // $input.setRangeText(
+                        //     keyHandlers
+                        //         .find(e => e.key === handler.key)
+                        //         .handle(e, { content: text }),
+                        //     $input.selectionStart,
+                        //     $input.selectionEnd,
+                        // )
 
                         return false
                     })
