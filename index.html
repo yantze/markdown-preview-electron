@@ -85,7 +85,7 @@
             const _ = require('lodash')
 
             const { ipcRenderer, remote } = require('electron')
-            const { readFile } = require('./util.js')
+            const { readFile, writeFile } = require('./util.js')
             const EventKeyboard = require('key-event-to-string')
 
             const eventKeyboardOptions = {
@@ -114,28 +114,28 @@
                     key: 'ctrl+b',
                     label: 'Bold',
                     handle: (e, context) => {
-                        return `**${context.content}**`
+                        return `**${context.selectedContent}**`
                     },
                 },
                 {
                     key: 'ctrl+i',
                     label: 'Italic',
                     handle: (e, context) => {
-                        return `*${context.content}*`
+                        return `*${context.selectedContent}*`
                     },
                 },
                 {
                     key: 'ctrl+u',
                     label: 'Delete line',
                     handle: (e, context) => {
-                        return `~~${context.content}~~`
+                        return `~~${context.selectedContent}~~`
                     },
                 },
                 {
                     key: 'ctrl+l',
                     label: 'Make link',
                     handle: (e, context) => {
-                        let content = context.content
+                        let content = context.selectedContent.trim()
                         const reg = /https?\:\/\/[^"\s]+/i
                         const result = reg.exec(content)
                         if (result) {
@@ -145,7 +145,7 @@
                             const text = splitText.join('').trim()
                             return `[${text}](${result[0]})`
                         } else {
-                            return `[${context.content}](${context.content})`
+                            return `[${content}](${content})`
                         }
                     },
                 },
@@ -157,35 +157,22 @@
                         context.app.getFilesFromUser()
                     },
                 },
-            ]
-
-            document.addEventListener(
-                'keydown',
-                e => {
-                    const key = eventToString(e).toLowerCase()
-                    const handler = keyHandlers.find(e => e.key === key)
-
-                    if (handler && handler.scope === 'global') {
-                        e.preventDefault()
-                        e.stopPropagation()
-
-                        document.execCommand(
-                            'insertText',
-                            false,
-                            handler.handle(e, {
-                                content: document.getSelection().toString(),
-                                app: remote.app,
-                            }),
-                        )
-                    }
+                {
+                    key: 'cmd+s',
+                    label: 'Save a file',
+                    scope: 'global',
+                    handle: async (e, context) => {
+                        const filePath = context.filePath
+                        await writeFile(filePath, context.content)
+                    },
                 },
-                true,
-            )
+            ]
 
             new Vue({
                 el: '#editor',
                 data: {
                     input: localStorage.getItem('input') || '',
+                    filePath: null,
                 },
                 computed: {
                     compiledMarkdown: function() {
@@ -208,6 +195,7 @@
                         async (event, { filePaths }) => {
                             const filePath = filePaths[0]
                             this.input = (await readFile(filePath)).toString()
+                            this.filePath = filePath
                         },
                     )
                 },
@@ -215,10 +203,51 @@
                     $input = this.$refs.input
                     const keysStr = keyHandlers.map(e => e.key).join(',')
 
+                    document.addEventListener(
+                        'keydown',
+                        e => {
+                            const key = eventToString(e).toLowerCase()
+                            const handler = keyHandlers.find(e => e.key === key)
+
+                            if (!handler) return
+
+                            if (handler.scope === 'global') {
+                                e.preventDefault()
+                                e.stopPropagation()
+
+                                handler.handle(e, {
+                                    content: this.input,
+                                    app: remote.app,
+                                    filePath: this.filePath,
+                                })
+
+                                return
+                            }
+
+                            if (e.target === $input) {
+                                e.preventDefault()
+                                e.stopPropagation()
+
+                                document.execCommand(
+                                    'insertText',
+                                    false,
+                                    handler.handle(e, {
+                                        selectedContent: document
+                                            .getSelection()
+                                            .toString(),
+                                        app: remote.app,
+                                    }),
+                                )
+
+                                return
+                            }
+                        },
+                        true,
+                    )
+
                     $input.addEventListener('keydown', e => {
                         const key = eventToString(e).toLowerCase()
                         const handler = keyHandlers.find(e => e.key === key)
-                        console.log('inner')
 
                         if (handler) {
                             document.execCommand(
