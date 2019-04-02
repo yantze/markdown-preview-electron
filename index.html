@@ -84,6 +84,9 @@
             const marked = require('marked')
             const _ = require('lodash')
 
+            const { ipcRenderer, remote } = require('electron')
+            const { readFile } = require('./util.js')
+
             // Synchronous highlighting with highlight.js
             marked.setOptions({
                 highlight: function(code, lang) {
@@ -107,21 +110,21 @@
 
             const keyHandlers = [
                 {
-                    key: 'command+b',
+                    key: 'ctrl+b',
                     label: 'Bold',
                     handle: (e, context) => {
                         return `**${context.content}**`
                     },
                 },
                 {
-                    key: 'command+i',
+                    key: 'ctrl+i',
                     label: 'Italic',
                     handle: (e, context) => {
                         return `*${context.content}*`
                     },
                 },
                 {
-                    key: 'command+u',
+                    key: 'ctrl+u',
                     label: 'Delete line',
                     handle: (e, context) => {
                         return `~~${context.content}~~`
@@ -143,6 +146,13 @@
                         } else {
                             return `[${context.content}](${context.content})`
                         }
+                    },
+                },
+                {
+                    key: 'cmd+o',
+                    label: 'Open file',
+                    handle: (e, context) => {
+                        context.app.getFilesFromUser()
                     },
                 },
             ]
@@ -167,23 +177,30 @@
                         localStorage.setItem('input', newValue)
                     },
                 },
+                created() {
+                    ipcRenderer.on(
+                        'file-opened',
+                        async (event, { filePaths }) => {
+                            const filePath = filePaths[0]
+                            this.input = (await readFile(filePath)).toString()
+                        },
+                    )
+                },
                 mounted() {
                     $input = this.$refs.input
                     const keysStr = keyHandlers.map(e => e.key).join(',')
-
-
-                    // hotkeys('*', { element: $input }, (e, handler) => {
-                    //     console.log('bbb-->', handler.key, e.keyCode, e.shiftKey, e.metaKey)
-                    // })
 
                     // 这里会出现捕获不了的情况，是在选择了头或者尾的情况下出现
                     hotkeys(keysStr, { element: $input }, (e, handler) => {
                         const text = document.getSelection().toString()
 
-                        document.execCommand('insertText', false,
+                        document.execCommand(
+                            'insertText',
+                            false,
                             keyHandlers
-                            .find(e => e.key === handler.key)
-                            .handle(e, { content: text }))
+                                .find(e => e.key === handler.key)
+                                .handle(e, { content: text, app: remote.app }),
+                        )
 
                         // const start = $input.selectionStart
                         // const end = $input.selectionEnd
