@@ -172,7 +172,7 @@
                 el: '#editor',
                 data: {
                     input: localStorage.getItem('input') || '',
-                    filePath: null,
+                    filePath: localStorage.getItem('filePath') || null,
                 },
                 computed: {
                     compiledMarkdown: function() {
@@ -196,6 +196,7 @@
                             const filePath = filePaths[0]
                             this.input = (await readFile(filePath)).toString()
                             this.filePath = filePath
+                            localStorage.setItem('filePath', filePath)
                         },
                     )
                 },
