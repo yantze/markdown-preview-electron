@@ -1,6 +1,30 @@
 # Markdown Preview
 
+## Feature
+
+-   [x] Read & Save File
+-   [x] Preview Markdown
+-   [x] Github CSS & Code Highlight
+-   [ ] Hide Preview
+-   [ ] Title Change by file name
+-   [ ] Friendly Generation forms
+-   [ ] App Menu
+-   [ ] About page
+-   [ ] Read & Save to EventNode
+-   [ ] Read & Save to Dropbox
+-   [ ] Read & Save to WebDav
+
 ## To Use
+
+### Generate HyperLink
+
+Select `abc http://xxx.com`, Press `Ctrl + L`, auto change to `[abc](http://xxx.com)`.
+
+### Generate Table
+
+TODO
+
+## To Dev
 
 ```bash
 # Clone this repository
