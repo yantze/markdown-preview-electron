@@ -16,7 +16,7 @@
         />
 
         <script src="./node_modules/vue/dist/vue.min.js"></script>
-        <script src="./node_modules/hotkeys-js/dist/hotkeys.min.js"></script>
+        <script src="./node_modules/key-event-to-string/index.js"></script>
         <style>
             html,
             body,
@@ -86,6 +86,17 @@
 
             const { ipcRenderer, remote } = require('electron')
             const { readFile } = require('./util.js')
+            const EventKeyboard = require('key-event-to-string')
+
+            const eventKeyboardOptions = {
+                cmd: 'cmd',
+                ctrl: 'ctrl',
+                alt: 'alt',
+                shift: 'shift',
+                joinWith: '+',
+            }
+
+            const eventToString = EventKeyboard(eventKeyboardOptions)
 
             // Synchronous highlighting with highlight.js
             marked.setOptions({
@@ -97,16 +108,6 @@
                     }
                 },
             })
-
-            hotkeys.filter = function(event) {
-                var tagName = (event.target || event.srcElement).tagName
-                return (
-                    tagName.isContentEditable ||
-                    tagName == 'INPUT' ||
-                    tagName == 'SELECT' ||
-                    tagName == 'TEXTAREA'
-                )
-            }
 
             const keyHandlers = [
                 {
@@ -151,11 +152,35 @@
                 {
                     key: 'cmd+o',
                     label: 'Open file',
+                    scope: 'global',
                     handle: (e, context) => {
                         context.app.getFilesFromUser()
                     },
                 },
             ]
+
+            document.addEventListener(
+                'keydown',
+                e => {
+                    const key = eventToString(e).toLowerCase()
+                    const handler = keyHandlers.find(e => e.key === key)
+
+                    if (handler && handler.scope === 'global') {
+                        e.preventDefault()
+                        e.stopPropagation()
+
+                        document.execCommand(
+                            'insertText',
+                            false,
+                            handler.handle(e, {
+                                content: document.getSelection().toString(),
+                                app: remote.app,
+                            }),
+                        )
+                    }
+                },
+                true,
+            )
 
             new Vue({
                 el: '#editor',
@@ -190,19 +215,21 @@
                     $input = this.$refs.input
                     const keysStr = keyHandlers.map(e => e.key).join(',')
 
-                    // 这里会出现捕获不了的情况，是在选择了头或者尾的情况下出现
-                    hotkeys(keysStr, { element: $input }, (e, handler) => {
-                        const text = document.getSelection().toString()
+                    $input.addEventListener('keydown', e => {
+                        const key = eventToString(e).toLowerCase()
+                        const handler = keyHandlers.find(e => e.key === key)
+                        console.log('inner')
 
-                        document.execCommand(
-                            'insertText',
-                            false,
-                            keyHandlers
-                                .find(e => e.key === handler.key)
-                                .handle(e, { content: text, app: remote.app }),
-                        )
-
-                        return false
+                        if (handler) {
+                            document.execCommand(
+                                'insertText',
+                                false,
+                                handler.handle(e, {
+                                    content: document.getSelection().toString(),
+                                    app: remote.app,
+                                }),
+                            )
+                        }
                     })
                 },
             })

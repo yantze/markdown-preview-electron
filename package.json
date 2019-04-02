@@ -16,7 +16,7 @@
   "dependencies": {
     "github-markdown-css": "^3.0.1",
     "highlight.js": "^9.15.6",
-    "hotkeys-js": "^3.6.2",
+    "key-event-to-string": "^1.2.0",
     "lodash": "^4.17.11",
     "marked": "^0.6.1",
     "vue": "^2.6.10"
