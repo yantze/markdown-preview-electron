@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="UTF-8" />
-        <title>Markdown Editor</title>
+        <title id="title">Markdown Editor</title>
 
         <link
             rel="stylesheet"
@@ -76,10 +76,17 @@
                 @input="update"
                 @keydown="update"
             ></textarea>
-            <div class="markdown-body" v-html="compiledMarkdown"></div>
+            <div
+                v-if="isPreview"
+                class="markdown-body"
+                v-html="compiledMarkdown"
+            ></div>
         </div>
 
         <script>
+            const qs = require('querystring')
+            const path = require('path')
+
             const hljs = require('highlight.js')
             const marked = require('marked')
             const _ = require('lodash')
@@ -108,6 +115,11 @@
                     }
                 },
             })
+
+            function changeTitle(title) {
+                $title = document.getElementById('title')
+                $title.innerHTML = title
+            }
 
             const keyHandlers = [
                 {
@@ -150,6 +162,14 @@
                     },
                 },
                 {
+                    key: 'cmd+r',
+                    label: 'Toggle Preview',
+                    scope: 'global',
+                    handle: (e, context) => {
+                        context.vm.isPreview = !context.vm.isPreview
+                    },
+                },
+                {
                     key: 'cmd+o',
                     label: 'Open file',
                     scope: 'global',
@@ -159,20 +179,65 @@
                 },
                 {
                     key: 'cmd+s',
-                    label: 'Save a file',
+                    label: 'Save the file',
                     scope: 'global',
-                    handle: async (e, context) => {
-                        const filePath = context.filePath
-                        await writeFile(filePath, context.content)
+                    handle: async function(e, context) {
+                        if (context.filePath) {
+                            await writeFile(context.filePath, context.content)
+                        } else {
+                            const filePath = context.dialog.showSaveDialog(
+                                context.currentWindow,
+                                {
+                                    title: 'Save file',
+                                    filters: [
+                                        {
+                                            name: 'Markdown files',
+                                            extensions: ['md', 'markdown'],
+                                        },
+                                        {
+                                            name: 'Text Files',
+                                            extensions: ['text'],
+                                        },
+                                    ],
+                                },
+                            )
+
+                            if (filePath) {
+                                context.vm.filePath = filePath
+                                await writeFile(filePath, context.content)
+                            }
+                        }
+                    },
+                },
+                {
+                    key: 'cmd+n',
+                    label: 'Create a file',
+                    scope: 'global',
+                    handle: async function(e, context) {
+                        context.app.createEditorWindow({
+                            query: {
+                                type: 'new',
+                            },
+                        })
                     },
                 },
             ]
 
-            new Vue({
+            const query = location.search.substr(1)
+            const openOptions = query.length ? qs.parse(query) : {}
+
+            const $vm = new Vue({
                 el: '#editor',
                 data: {
-                    input: localStorage.getItem('input') || '',
-                    filePath: localStorage.getItem('filePath') || null,
+                    isPreview: true,
+                    input:
+                        openOptions.type === 'new'
+                            ? ''
+                            : localStorage.getItem('input') || '',
+                    filePath:
+                        openOptions.type === 'new'
+                            ? ''
+                            : localStorage.getItem('filePath') || '',
                 },
                 computed: {
                     compiledMarkdown: function() {
@@ -188,6 +253,9 @@
                     input(newValue) {
                         localStorage.setItem('input', newValue)
                     },
+                    filePath(newValue) {
+                        localStorage.setItem('filePath', newValue)
+                    },
                 },
                 created() {
                     ipcRenderer.on(
@@ -196,9 +264,13 @@
                             const filePath = filePaths[0]
                             this.input = (await readFile(filePath)).toString()
                             this.filePath = filePath
-                            localStorage.setItem('filePath', filePath)
+
+                            const basename = path.basename(filePath)
+                            changeTitle(basename)
                         },
                     )
+
+                    changeTitle(path.basename(filePath))
                 },
                 mounted() {
                     $input = this.$refs.input
@@ -212,14 +284,20 @@
 
                             if (!handler) return
 
+                            e.preventDefault()
+                            e.stopPropagation()
+
                             if (handler.scope === 'global') {
                                 e.preventDefault()
                                 e.stopPropagation()
 
-                                handler.handle(e, {
+                                handler.handle.call(this, e, {
                                     content: this.input,
                                     app: remote.app,
+                                    dialog: remote.dialog,
+                                    currentWindow: remote.getCurrentWindow(),
                                     filePath: this.filePath,
+                                    vm: this,
                                 })
 
                                 return
@@ -232,7 +310,7 @@
                                 document.execCommand(
                                     'insertText',
                                     false,
-                                    handler.handle(e, {
+                                    handler.handle.call(this, e, {
                                         selectedContent: document
                                             .getSelection()
                                             .toString(),
@@ -245,22 +323,6 @@
                         },
                         true,
                     )
-
-                    $input.addEventListener('keydown', e => {
-                        const key = eventToString(e).toLowerCase()
-                        const handler = keyHandlers.find(e => e.key === key)
-
-                        if (handler) {
-                            document.execCommand(
-                                'insertText',
-                                false,
-                                handler.handle(e, {
-                                    content: document.getSelection().toString(),
-                                    app: remote.app,
-                                }),
-                            )
-                        }
-                    })
                 },
             })
         </script>

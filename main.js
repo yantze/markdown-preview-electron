@@ -1,3 +1,5 @@
+const qs = require('querystring')
+
 // Modules to control application life and create native browser window
 const { app, BrowserWindow, dialog } = require('electron')
 
@@ -5,42 +7,45 @@ const { app, BrowserWindow, dialog } = require('electron')
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
 
-function createWindow() {
+function createEditorWindow({ query } = {}) {
     // Create the browser window.
-    mainWindow = new BrowserWindow({
+    let browserWindow = new BrowserWindow({
         width: 800,
         height: 600,
-        show: false,
+        // show: false,
         webPreferences: {
             nodeIntegration: true,
         },
     })
 
     // and load the index.html of the app.
-    mainWindow.loadFile('index.html')
+    const url = `file://${app.getAppPath()}/index.html?${qs.stringify(query)}`
+    browserWindow.loadURL(url)
 
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
 
     // Emitted when the window is closed.
-    mainWindow.on('closed', function() {
+    browserWindow.on('closed', function() {
         // Dereference the window object, usually you would store windows
         // in an array if your app supports multi windows, this is the time
         // when you should delete the corresponding element.
-        mainWindow = null
+        browserWindow = null
     })
+
+    return browserWindow
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-    createWindow()
+    mainWindow = createEditorWindow()
 
-    mainWindow.on('ready-to-show', () => {
-        mainWindow.show()
-        // getFilesFromUser()
-    })
+    // mainWindow.on('ready-to-show', () => {
+    //     mainWindow.show()
+    //     // getFilesFromUser()
+    // })
 })
 
 // Quit when all windows are closed.
@@ -53,13 +58,13 @@ app.on('window-all-closed', function() {
 app.on('activate', function() {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (mainWindow === null) createWindow()
+    if (mainWindow === null) mainWindow = createEditorWindow()
 })
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 
-function getFilesFromUser() {
+app.getFilesFromUser = function() {
     const filePaths = dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [
@@ -78,4 +83,4 @@ function getFilesFromUser() {
     })
 }
 
-app.getFilesFromUser = getFilesFromUser
+app.createEditorWindow = createEditorWindow
