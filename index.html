@@ -269,10 +269,9 @@
                             changeTitle(basename)
                         },
                     )
-
-                    changeTitle(path.basename(filePath))
                 },
                 mounted() {
+                    this.filePath && changeTitle(path.basename(this.filePath))
                     $input = this.$refs.input
                     const keysStr = keyHandlers.map(e => e.key).join(',')
 

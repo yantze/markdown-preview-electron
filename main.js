@@ -21,6 +21,7 @@ function createEditorWindow({ query } = {}) {
     // and load the index.html of the app.
     const url = `file://${app.getAppPath()}/index.html?${qs.stringify(query)}`
     browserWindow.loadURL(url)
+    browserWindow.webContents.openDevTools()
 
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
