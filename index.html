@@ -17,6 +17,9 @@
 
         <script src="./node_modules/vue/dist/vue.min.js"></script>
         <script src="./node_modules/key-event-to-string/index.js"></script>
+        <script>
+            // You can also require other files to run in this process
+        </script>
         <style>
             html,
             body,
@@ -94,6 +97,8 @@
             const { ipcRenderer, remote } = require('electron')
             const { readFile, writeFile } = require('./util.js')
             const EventKeyboard = require('key-event-to-string')
+
+            const R = require('./renderer.js')
 
             const eventKeyboardOptions = {
                 cmd: 'cmd',
@@ -182,6 +187,14 @@
                     label: 'Save the file',
                     scope: 'global',
                     handle: async function(e, context) {
+                        console.log('start write')
+                        await R.fileManager.writeFile(
+                            '/source/abc.md',
+                            context.content,
+                        )
+                        console.log('end write')
+
+                        return
                         if (context.filePath) {
                             await writeFile(context.filePath, context.content)
                         } else {
@@ -324,11 +337,6 @@
                     )
                 },
             })
-        </script>
-
-        <script>
-            // You can also require other files to run in this process
-            require('./renderer.js')
         </script>
     </body>
 </html>
