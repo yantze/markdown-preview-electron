@@ -1,6 +1,7 @@
 // This file is required by the index.html file and will
 // be executed in the renderer process for that window.
 // All of the Node.js APIs are available in this process.
+const fetch = require('node-fetch')
 
 const logger = {
     debug: (...args) => console.log(...args),
@@ -11,9 +12,13 @@ class FileManager {
         this.sourcePath = '/source'
 
         const Dropbox = require('dropbox').Dropbox
-        this.dbx = new Dropbox({ accessToken: process.env.DROPBOX_TOKEN })
+        this.dbx = new Dropbox({
+            accessToken: process.env.DROPBOX_TOKEN,
+            fetch,
+        })
         // window.dbx = this.dbx
 
+        // Create sourcePath if no exist for storing file
         this.dbx.filesListFolder({ path: '' }).then(listFolder => {
             const isExistSource = listFolder.entries.some(
                 foldInfo => foldInfo.path_lower === this.sourcePath,
@@ -28,9 +33,11 @@ class FileManager {
         })
     }
 
-    async getFileList() {
+    async filesListFolder(dirPath) {
+        if (!dirPath) dirPath = this.sourcePath
         const listFiles = await this.dbx.filesListFolder({
-            path: this.sourcePath,
+            path: dirPath,
+            recursive: true,
         })
         let fileList = listFiles.entries.map(fileInfo => fileInfo)
 
@@ -39,16 +46,22 @@ class FileManager {
 
     async writeFile(filePath, content) {
         const timestamp = Date.now()
-        try {
-            await this.dbx.filesGetMetadata({ path: filePath })
-            await this.dbx.filesDeleteV2({ path: filePath })
-        } catch (e) {
-            e
-        }
+        // try {
+        //     await this.dbx.filesGetMetadata({ path: filePath })
+        //     await this.dbx.filesDeleteV2({ path: filePath })
+        // } catch (e) {
+        //     e
+        // }
 
-        await this.dbx.filesUpload({ path: filePath, contents: content })
+        await this.dbx.filesUpload({
+            path: filePath,
+            contents: content,
+            mode: 'overwrite',
+        })
         logger.debug('Write file cost:', Date.now() - timestamp, 'ms')
     }
+
+    async directoryTree() {}
 }
 
 // async function demo() {
